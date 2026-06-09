@@ -12,6 +12,7 @@ import type {
   SystemStatsSnapshot,
   TaskLogEvent,
   TaskStateEvent,
+  UpdateProgressEvent,
 } from '../shared/types';
 
 type ThemePreference = 'system' | 'light' | 'dark';
@@ -281,6 +282,8 @@ export default function App() {
   const [shortcutAliases, setShortcutAliases] = useState<string[]>(getInitialShortcutAliases);
   const [isAliasDropdownOpen, setIsAliasDropdownOpen] = useState(false);
   const aliasDropdownRef = useRef<HTMLDivElement | null>(null);
+  const [updateProgress, setUpdateProgress] = useState<UpdateProgressEvent | null>(null);
+  const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
   const [sortMode, setSortMode] = useState(false);
   const [isProjectListVisible, setIsProjectListVisible] = useState(true);
   const [draggingEditorId, setDraggingEditorId] = useState<string | null>(null);
@@ -469,6 +472,21 @@ export default function App() {
 
     return () => {
       stopAppQuitState();
+    };
+  }, []);
+
+  useEffect(() => {
+    const stopUpdateProgress = window.deployMaster.onUpdateProgress((payload) => {
+      setUpdateProgress(payload);
+      setIsCheckingUpdate(false);
+
+      if (payload.status === 'available' && payload.version) {
+        pushToast(`发现新版本 v${payload.version}`, 'info');
+      }
+    });
+
+    return () => {
+      stopUpdateProgress();
     };
   }, []);
 
@@ -748,6 +766,24 @@ export default function App() {
 
   const deleteShortcutAlias = (alias: string) => {
     setShortcutAliases((current) => current.filter((item) => item !== alias));
+  };
+
+  const checkForUpdates = async () => {
+    setIsCheckingUpdate(true);
+    try {
+      await window.deployMaster.checkForUpdates();
+    } catch (error) {
+      pushToast(formatErrorMessage(error), 'error');
+      setIsCheckingUpdate(false);
+    }
+  };
+
+  const installUpdate = async () => {
+    try {
+      await window.deployMaster.installUpdate();
+    } catch (error) {
+      pushToast(formatErrorMessage(error), 'error');
+    }
   };
 
   const runShortcut = async (projectId: string, shortcutId: string) => {
@@ -1292,6 +1328,72 @@ export default function App() {
                   </div>
                 </div>
               </div>
+
+              <div className="surface-subpanel rounded-2xl p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="text-primary-ui text-sm font-semibold">应用更新</p>
+                    <p className="text-muted-ui mt-1 text-xs leading-5">
+                      检查 GitHub 上的最新版本，自动下载并安装更新。
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-3 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <span className="badge-neutral rounded-full px-2.5 py-1 text-[11px]">
+                      当前版本 v{window.deployMaster.getAppVersion?.() || '1.0.0'}
+                    </span>
+                    {updateProgress?.version ? (
+                      <span className="badge-accent rounded-full px-2.5 py-1 text-[11px]">
+                        最新版本 v{updateProgress.version}
+                      </span>
+                    ) : null}
+                  </div>
+
+                  {updateProgress?.status === 'downloading' ? (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-xs text-secondary-ui">
+                        <span>正在下载更新...</span>
+                        <span>{updateProgress.progress ?? 0}%</span>
+                      </div>
+                      <div className="h-2 overflow-hidden rounded-full bg-black/8 dark:bg-white/8">
+                        <div
+                          className="h-full rounded-full bg-[var(--accent)] transition-all duration-300"
+                          style={{ width: `${updateProgress.progress ?? 0}%` }}
+                        />
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {updateProgress?.status === 'error' ? (
+                    <p className="text-xs text-rose-400">
+                      更新检查失败：{updateProgress.error}
+                    </p>
+                  ) : null}
+
+                  <div className="flex flex-wrap gap-2">
+                    {updateProgress?.status === 'downloaded' ? (
+                      <button
+                        type="button"
+                        onClick={installUpdate}
+                        className="btn-accent rounded-full px-4 py-2 text-xs font-semibold"
+                      >
+                        立即安装并重启
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={checkForUpdates}
+                        disabled={isCheckingUpdate || updateProgress?.status === 'downloading'}
+                        className="btn-ghost rounded-full px-4 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        {isCheckingUpdate ? '检查中...' : '检查更新'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
           </section>
         </div>
@@ -1469,15 +1571,20 @@ export default function App() {
             >
               {addingProject ? '选择中...' : '添加项目'}
             </button>
-            <button
-              type="button"
-              onClick={() => setIsSettingsOpen(true)}
-              title="打开设置"
-              aria-label="打开设置"
-              className="btn-ghost inline-flex h-10 w-10 items-center justify-center rounded-full"
-            >
-              <Icon name="settings" className="text-[16px]" />
-            </button>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setIsSettingsOpen(true)}
+                title="打开设置"
+                aria-label="打开设置"
+                className="btn-ghost inline-flex h-10 w-10 items-center justify-center rounded-full"
+              >
+                <Icon name="settings" className="text-[16px]" />
+              </button>
+              {updateProgress?.status === 'available' || updateProgress?.status === 'downloaded' ? (
+                <span className="absolute right-1 top-1 h-2.5 w-2.5 rounded-full bg-[var(--accent)] ring-2 ring-[var(--surface)]" />
+              ) : null}
+            </div>
             <button
               type="button"
               onClick={toggleProjectListVisibility}

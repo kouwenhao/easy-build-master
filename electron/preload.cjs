@@ -22,6 +22,7 @@ contextBridge.exposeInMainWorld('deployMaster', {
     ipcRenderer.invoke('vue-config:save', { projectId, fileName, content }),
   deleteVueConfigFile: (projectId, fileName) => ipcRenderer.invoke('vue-config:delete', { projectId, fileName }),
   getSystemStats: () => ipcRenderer.invoke('system:stats:get'),
+  getAppVersion: () => ipcRenderer.invoke('app:version'),
   runShortcut: (projectId, shortcutId, note) =>
     ipcRenderer.invoke('tasks:run-shortcut', { projectId, shortcutId, note }),
   packageProject: (projectId, profileId, namingRule) =>
@@ -49,5 +50,12 @@ contextBridge.exposeInMainWorld('deployMaster', {
     const handler = (_event, payload) => listener(payload);
     ipcRenderer.on('task:log', handler);
     return () => ipcRenderer.removeListener('task:log', handler);
+  },
+  checkForUpdates: () => ipcRenderer.invoke('updater:check'),
+  installUpdate: () => ipcRenderer.invoke('updater:install'),
+  onUpdateProgress: (listener) => {
+    const handler = (_event, payload) => listener(payload);
+    ipcRenderer.on('updater:status', handler);
+    return () => ipcRenderer.removeListener('updater:status', handler);
   },
 });

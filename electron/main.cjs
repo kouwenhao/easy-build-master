@@ -7,6 +7,7 @@ const fs = require('node:fs/promises');
 const fsSync = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { autoUpdater } = require('electron-updater');
 
 const { ProjectStore } = require('./store.cjs');
 
@@ -115,6 +116,10 @@ function emitSystemStats(payload) {
 
 function emitAppQuitState(payload) {
   mainWindow?.webContents.send('app:quit-state', payload);
+}
+
+function emitUpdateProgress(payload) {
+  mainWindow?.webContents.send('updater:status', payload);
 }
 
 function createTaskRuntime(taskId) {
@@ -2021,6 +2026,16 @@ function registerIpcHandlers() {
   });
 
   ipcMain.handle('system:stats:get', async () => latestSystemStats ?? collectSystemStats());
+
+  ipcMain.handle('app:version', async () => app.getVersion());
+
+  ipcMain.handle('updater:check', async () => {
+    await autoUpdater.checkForUpdates();
+  });
+
+  ipcMain.handle('updater:install', async () => {
+    autoUpdater.quitAndInstall(false, true);
+  });
 }
 
 async function cleanupActiveProcesses() {
@@ -2060,6 +2075,49 @@ function requestAppQuitAfterCleanup() {
   return quitCleanupPromise;
 }
 
+function setupAutoUpdater() {
+  autoUpdater.autoDownload = false;
+  autoUpdater.autoInstallOnAppQuit = false;
+
+  autoUpdater.on('checking-for-update', () => {
+    emitUpdateProgress({ status: 'checking' });
+  });
+
+  autoUpdater.on('update-available', (info) => {
+    emitUpdateProgress({
+      status: 'available',
+      version: info.version,
+      releaseNotes: typeof info.releaseNotes === 'string' ? info.releaseNotes : '',
+    });
+  });
+
+  autoUpdater.on('update-not-available', () => {
+    emitUpdateProgress({ status: 'not-available' });
+  });
+
+  autoUpdater.on('download-progress', (progress) => {
+    emitUpdateProgress({
+      status: 'downloading',
+      progress: Math.round(progress.percent),
+    });
+  });
+
+  autoUpdater.on('update-downloaded', (info) => {
+    emitUpdateProgress({
+      status: 'downloaded',
+      version: info.version,
+      releaseNotes: typeof info.releaseNotes === 'string' ? info.releaseNotes : '',
+    });
+  });
+
+  autoUpdater.on('error', (error) => {
+    emitUpdateProgress({
+      status: 'error',
+      error: error.message,
+    });
+  });
+}
+
 app.whenReady().then(() => {
   app.setName('Front-End Deploy Master');
 
@@ -2070,7 +2128,12 @@ app.whenReady().then(() => {
   startSystemStatsLoop();
   startNavServer();
   registerIpcHandlers();
+  setupAutoUpdater();
   createMainWindow();
+
+  setTimeout(() => {
+    autoUpdater.checkForUpdates().catch(() => undefined);
+  }, 5000);
 });
 
 app.on('before-quit', (event) => {

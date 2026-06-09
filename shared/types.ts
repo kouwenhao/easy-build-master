@@ -131,6 +131,16 @@ export interface RunTaskResult {
   taskId: string;
 }
 
+export type UpdateStatus = 'idle' | 'checking' | 'available' | 'not-available' | 'downloading' | 'downloaded' | 'error';
+
+export interface UpdateProgressEvent {
+  status: UpdateStatus;
+  progress?: number;
+  version?: string;
+  releaseNotes?: string;
+  error?: string;
+}
+
 export interface ConfigExportResult {
   filePath: string;
   projectCount: number;
@@ -167,6 +177,7 @@ export interface DeployMasterApi {
   saveVueConfigFile: (projectId: string, fileName: string, content: string) => Promise<VueConfigFileSummary>;
   deleteVueConfigFile: (projectId: string, fileName: string) => Promise<void>;
   getSystemStats: () => Promise<SystemStatsSnapshot>;
+  getAppVersion: () => Promise<string>;
   runShortcut: (projectId: string, shortcutId: string, note?: string) => Promise<RunTaskResult>;
   packageProject: (projectId: string, profileId?: string, namingRule?: string) => Promise<RunTaskResult>;
   stopTask: (taskId: string) => Promise<void>;
@@ -176,4 +187,7 @@ export interface DeployMasterApi {
   onSystemStats: (listener: (event: SystemStatsSnapshot) => void) => () => void;
   onTaskUpdate: (listener: (event: TaskStateEvent) => void) => () => void;
   onTaskLog: (listener: (event: TaskLogEvent) => void) => () => void;
+  checkForUpdates: () => Promise<void>;
+  installUpdate: () => Promise<void>;
+  onUpdateProgress: (listener: (event: UpdateProgressEvent) => void) => () => void;
 }

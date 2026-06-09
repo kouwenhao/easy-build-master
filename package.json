@@ -51,6 +51,12 @@
       "installerIcon": "build/installerIcon.ico",
       "uninstallerIcon": "build/uninstallerIcon.ico",
       "installerHeaderIcon": "build/installerHeaderIcon.ico"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "kouwenhao",
+      "repo": "easy-build-master",
+      "releaseType": "release"
     }
   },
   "devDependencies": {
@@ -72,6 +78,7 @@
     "@codemirror/lang-javascript": "^6.2.5",
     "@uiw/react-codemirror": "^4.25.10",
     "archiver": "^7.0.1",
+    "electron-updater": "^6.8.9",
     "react": "^19.2.4",
     "react-dom": "^19.2.4"
   }
