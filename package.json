@@ -1,0 +1,78 @@
+{
+  "name": "front-end-deploy-master",
+  "private": true,
+  "version": "1.0.0",
+  "author": {
+    "name": "Front-End Deploy Master"
+  },
+  "type": "module",
+  "main": "electron/main.cjs",
+  "description": "Windows desktop tool for managing front-end projects, running commands, and exporting dist zip releases.",
+  "scripts": {
+    "dev": "concurrently -k \"npm:dev:renderer\" \"npm:dev:electron\"",
+    "dev:renderer": "vite",
+    "dev:electron": "wait-on tcp:5173 && cross-env VITE_DEV_SERVER_URL=http://127.0.0.1:5173 electron .",
+    "build": "vite build",
+    "check": "tsc --noEmit",
+    "docs:screenshots": "npm run build && electron scripts/capture-docs-screenshots.cjs",
+    "brand:assets": "\"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe\" -ExecutionPolicy Bypass -File .\\scripts\\generate-brand-assets.ps1",
+    "preview": "vite preview",
+    "dist:win": "npm run build && electron-builder --win nsis"
+  },
+  "build": {
+    "appId": "com.codex.frontenddeploymaster",
+    "productName": "Front-End Deploy Master",
+    "artifactName": "${productName} Setup ${version}.${ext}",
+    "executableName": "Easy Build Master",
+    "afterPack": "./scripts/after-pack.cjs",
+    "copyright": "Copyright © 2026 Front-End Deploy Master",
+    "directories": {
+      "output": "release-build"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "asar": true,
+    "win": {
+      "icon": "build/icon.ico",
+      "legalTrademarks": "Easy Build Master",
+      "signAndEditExecutable": false,
+      "target": [
+        "nsis"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "installerIcon": "build/installerIcon.ico",
+      "uninstallerIcon": "build/uninstallerIcon.ico",
+      "installerHeaderIcon": "build/installerHeaderIcon.ico"
+    }
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.2.2",
+    "@types/node": "^25.5.2",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.0",
+    "concurrently": "^9.2.1",
+    "cross-env": "^10.1.0",
+    "electron": "^41.1.1",
+    "electron-builder": "^26.8.1",
+    "tailwindcss": "^4.2.2",
+    "typescript": "~6.0.2",
+    "vite": "^8.0.4",
+    "wait-on": "^9.0.4"
+  },
+  "dependencies": {
+    "@codemirror/lang-javascript": "^6.2.5",
+    "@uiw/react-codemirror": "^4.25.10",
+    "archiver": "^7.0.1",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
+  }
+}
